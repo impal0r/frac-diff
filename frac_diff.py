@@ -1,27 +1,34 @@
-#Working out fractional derivatives...
+#Fractional derivatives of power functions!
 #https://en.wikipedia.org/wiki/Fractional_calculus
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from math import gamma
 
-def is_negative_integer(x:float):
+#-------------------------------- MATHS CODE --------------------------------
+
+def is_negative_integer(x : float):
+    '''
+    Checks whether x is a negative integer
+    -> is_neg_integer : bool
+    '''
     return x.is_integer() and x < 0
 
-#this function sometimes gives the wrong answer for negative powers
+#slight technicality: this function sometimes gives the wrong answer for negative powers
 # (eg. integral of x^-1 is ln(x) not 0)
-# so the power is limited to non-negative values on the sliders below
-#it always gives the right answer as long as power > 0
+# to avoid this, the power is limited to non-negative values on the sliders below
 def analytical_frac_diff(const, power, a):
     '''
-    Differentiates [const * x**power] a times, where a is real
-    Returns (new_const, new_power)
+    Differentiates [const * x**power] `a` times, where `a` is real
+    When initial or final power is a negative integer, (0.0, 0.0) is returned
+    All arguments and return values are `float`s
+    -> (new_const, new_power)
     '''
     if is_negative_integer(power) and is_negative_integer(power-a):
         #this is actually differentiable and does not yield g(x)=0,
         # but gamma() in the formula would raise a math domain error
         # therefore we treat this case separately
-        #note a has to be an integer, so we can fall back on conventional calculus
+        #note a is an integer here, so we can fall back on conventional calculus
         if a >= 0:
             #differentiate a times
             for i in range(int(a)):
@@ -34,29 +41,34 @@ def analytical_frac_diff(const, power, a):
                 power += 1
         return (const, power)
     elif is_negative_integer(power) or is_negative_integer(power-a):
-        return (0.0, 0.0) #NOT ALWAYS THE RIGHT ANSWER WHEN power < 0 !
+        return (0.0, 0.0) #NOT ALWAYS THE RIGHT ANSWER WHEN power < 0
         #but it does avoid feeding gamma() invalid values below
+        #Thought: would accounting for the integral of 1/x being ln(x) be
+        # enough to fix this?
     else:
-        #use the formula from wikipedia for monomial functions
+        #use the formula for monomial functions
         #d^a/dx^a x^k = gamma(k+1)/gamma(k-a+1) * x^(k-a)
         return (const * gamma(power+1) / gamma(power-a+1), power-a)
 
-def monomial_frac_diff(const, power, a):
+def vectorized_frac_diff(const, power, a):
     '''
     Differentiates [const * x**power] a times, where a is real
-    Returns a numpy vectorized function
+    Returns a numpy vectorized function (ie. a Callable)
+    See analytical_frac_diff(const, power, a)
     '''
     new_const, new_power = analytical_frac_diff(const, power, a)
     g = lambda x: new_const * x**new_power
     return np.vectorize(g) #return function that can work on numpy arrays
 
-#set up x-values and functions
+#set up x-values and default functions
 x_values = np.linspace(0.00001, 5, 1000)
 const = 1.0
 power = 1.0
 order = 0.0
 f = np.vectorize(lambda x: const*x**power)
 g = monomial_frac_diff(const, power, order)
+
+#------------------ INTERACTIVE MATPLOTLIB APPLICATION CODE ----------------------
 
 #set up text rendering
 label_font = {'family': 'Calibri',
@@ -124,4 +136,5 @@ s_order.on_changed(update)
 s_power.on_changed(update)
 s_const.on_changed(update)
 
+#show interactive grahpic
 plt.show()
